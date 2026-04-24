@@ -1,0 +1,43 @@
+name: Snapshot ollama state
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  export_ollama_models:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Ollama CLI
+        # Uses the official install script for Linux/Ubuntu
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Pull Required Model
+        run: |
+          sleep 3
+          ollama pull gemma4:31b
+          ollama show --modelfile gemma4:31b
+          echo "ls .ollama/models/blobs"
+          ls -lhA /usr/share/ollama/.ollama/models/blobs
+          echo "ls .ollama/models/manifests/registry.ollama.ai/library/gemma4"
+          ls -lhA /usr/share/ollama/.ollama/models/manifests/registry.ollama.ai/library/gemma4/31b
+
+      - name: Compress Models Directory
+        # Compresses the models directory. The path structure remains similar on Linux.
+        run: |
+          tar -cf ollama_models.tar /usr/share/ollama/.ollama/models
+
+      - name: Upload Artifact
+        # Saves the compressed file as a downloadable artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ollama-gemma4-31b-models
+          path: ollama_models.tar
+          compression: 0
