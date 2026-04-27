@@ -1,4 +1,4 @@
-name: Snapshot ollama state
+name: Download HuggingFace Model Snapshot
 
 on:
   push:
@@ -7,37 +7,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  export_ollama_models:
+  download_hf_model:
     runs-on: ubuntu-latest
 
+    env:
+      HF_MODEL_ID: unsloth/gemma-4-E4B-it-UD-MLX-4bit
+      MODEL_NAME: gemma4_31b
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Install Ollama CLI
-        # Uses the official install script for Linux/Ubuntu
-        run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-
-      - name: Pull Required Model
-        run: |
-          sleep 3
-          ollama pull gemma4:31b
-          ollama show --modelfile gemma4:31b
-          echo "ls .ollama/models/blobs"
-          ls -lhA /usr/share/ollama/.ollama/models/blobs
-          echo "ls .ollama/models/manifests/registry.ollama.ai/library/gemma4"
-          ls -lhA /usr/share/ollama/.ollama/models/manifests/registry.ollama.ai/library/gemma4/31b
-
-      - name: Compress Models Directory
-        # Compresses the models directory. The path structure remains similar on Linux.
-        run: |
-          tar -cf ollama_models.tar /usr/share/ollama/.ollama/models
-
-      - name: Upload Artifact
-        # Saves the compressed file as a downloadable artifact
-        uses: actions/upload-artifact@v6
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          name: ollama-gemma4-31b-models
-          path: ollama_models.tar
-          compression: 0
+          python-version: "3.x"
+
+      - name: Install Hugging Face Hub
+        run: |
+          pip install huggingface_hub
+
+      - name: Download Model Repository
+        run: |
+          echo "Starting download for model: ${{ env.HF_MODEL_ID }}"
+          hf download ${{ env.HF_MODEL_ID }} --local-dir ${{ env.MODEL_NAME }} --local-dir-use-symlinks False
+          echo "Download complete."
+          ls -lh ${{ env.MODEL_NAME }}/
+
+      - name: Compress Downloaded Models
+        run: |
+          tar -cf models_snapshot_${{ env.MODEL_NAME }}.tar ${{ env.MODEL_NAME }}
+
+      - name: Upload Model Snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MODEL_NAME }}-snapshot
+          path: models_snapshot_${{ env.MODEL_NAME }}.tar
+          compression_level: 0
