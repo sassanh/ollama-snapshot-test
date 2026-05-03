@@ -1,4 +1,4 @@
-name: Download HuggingFace Model Snapshot
+name: Ghostty Download Test
 
 on:
   push:
@@ -7,40 +7,38 @@ on:
   workflow_dispatch:
 
 jobs:
-  download_hf_model:
-    runs-on: ubuntu-latest
-
-    env:
-      HF_MODEL_ID: mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-8bit
-      LOCAL_DIR: Qwen3-TTS-12Hz-1.7B-VoiceDesign-8bit
+  download_ghostty_deps:
+    runs-on: macos-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Checkout Ghostty
+        uses: actions/checkout@v4
         with:
-          python-version: "3.x"
+          repository: ghostty-org/ghostty
+          fetch-depth: 1
+          path: ghostty
 
-      - name: Install Hugging Face Hub
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Fetch zig dependencies
+        # Use continue-on-error because we expect the full build to fail on macos,
+        # but we only care about the dependencies downloaded before it fails.
+        continue-on-error: true
         run: |
-          pip install huggingface_hub
+          cd ghostty
+          # Force the global cache to a local directory so we can bundle it.
+          # We use 'build' because it triggers the fetch and doesn't exit prematurely.
+          export ZIG_GLOBAL_CACHE_DIR=$(pwd)/zig-pkg
+          uvx --from ziglang==0.15.2 python-zig build
 
-      - name: Download Model Repository
+      - name: Bundle zig-pkg
         run: |
-          echo "Starting download for model: ${{ env.HF_MODEL_ID }}"
-          hf download ${{ env.HF_MODEL_ID }} --local-dir ${{ env.LOCAL_DIR }}
-          echo "Download complete."
-          ls -lh ${{ env.LOCAL_DIR }}/
+          # If zig-pkg doesn't exist, this will fail as requested.
+          tar -cvf zig-pkg.tar -C ghostty zig-pkg
 
-      - name: Compress Downloaded Models
-        run: |
-          tar -cf models_snapshot_${{ env.LOCAL_DIR }}.tar ${{ env.LOCAL_DIR }}
-
-      - name: Upload Model Snapshot
-        uses: actions/upload-artifact@v6
+      - name: Upload zig-pkg Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.LOCAL_DIR }}-snapshot
-          path: models_snapshot_${{ env.LOCAL_DIR }}.tar
-          compression-level: 0
+          name: zig-pkg
+          path: zig-pkg.tar
