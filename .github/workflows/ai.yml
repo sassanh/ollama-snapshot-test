@@ -1,4 +1,4 @@
-name: Download HuggingFace Model Snapshot
+name: Download Test Item
 
 on:
   push:
@@ -7,40 +7,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  download_hf_model:
+  download_bundle:
     runs-on: ubuntu-latest
 
     env:
-      HF_MODEL_ID: mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-8bit
-      LOCAL_DIR: Qwen3-TTS-12Hz-1.7B-VoiceDesign-8bit
+      DOWNLOAD_URL: https://installers.lmstudio.ai/darwin/arm64/0.4.12-1/LM-Studio-0.4.12-1-arm64.dmg
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-
-      - name: Install Hugging Face Hub
+      - name: Download
         run: |
-          pip install huggingface_hub
-
-      - name: Download Model Repository
-        run: |
-          echo "Starting download for model: ${{ env.HF_MODEL_ID }}"
-          hf download ${{ env.HF_MODEL_ID }} --local-dir ${{ env.LOCAL_DIR }}
+          echo "Starting download"
+          curl -L -o file ${{ env.DOWNLOAD_URL }}
           echo "Download complete."
-          ls -lh ${{ env.LOCAL_DIR }}/
 
-      - name: Compress Downloaded Models
+      - name: Compress Installer
         run: |
-          tar -cf models_snapshot_${{ env.LOCAL_DIR }}.tar ${{ env.LOCAL_DIR }}
+          tar -cf bundle.tar file
 
-      - name: Upload Model Snapshot
+      - name: Upload Installer Snapshot
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ env.LOCAL_DIR }}-snapshot
-          path: models_snapshot_${{ env.LOCAL_DIR }}.tar
+          name: bundle
+          path: bundle.tar
           compression-level: 0
