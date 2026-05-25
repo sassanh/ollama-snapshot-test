@@ -1,4 +1,4 @@
-name: Ghostty Download Test
+name: Download Test Item
 
 on:
   push:
@@ -7,38 +7,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  download_ghostty_deps:
-    runs-on: macos-latest
+  download_bundle:
+    runs-on: ubuntu-latest
+
+    env:
+      DOWNLOAD_URL: https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.0.3-6242596486512640/darwin-arm/Antigravity%20IDE.dmg
 
     steps:
-      - name: Checkout Ghostty
-        uses: actions/checkout@v4
-        with:
-          repository: ghostty-org/ghostty
-          fetch-depth: 1
-          path: ghostty
+      - name: Checkout Repository
+        uses: actions/checkout@v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Fetch zig dependencies
-        # Use continue-on-error because we expect the full build to fail on macos,
-        # but we only care about the dependencies downloaded before it fails.
-        continue-on-error: true
+      - name: Download
         run: |
-          cd ghostty
-          # Force the global cache to a local directory so we can bundle it.
-          # We use 'build' because it triggers the fetch and doesn't exit prematurely.
-          export ZIG_GLOBAL_CACHE_DIR=$(pwd)/zig-pkg
-          uvx --from ziglang==0.15.2 python-zig build
+          echo "Starting download"
+          curl -L -o file ${{ env.DOWNLOAD_URL }}
+          echo "Download complete."
 
-      - name: Bundle zig-pkg
+      - name: Compress Installer
         run: |
-          # If zig-pkg doesn't exist, this will fail as requested.
-          tar -cvf zig-pkg.tar -C ghostty zig-pkg
+          tar -cf bundle.tar file
 
-      - name: Upload zig-pkg Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Installer Snapshot
+        uses: actions/upload-artifact@v6
         with:
-          name: zig-pkg
-          path: zig-pkg.tar
+          name: bundle
+          path: bundle.tar
+          compression-level: 0
